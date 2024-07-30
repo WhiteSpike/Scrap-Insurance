@@ -6,6 +6,10 @@ using ScrapInsurance.Misc;
 using ScrapInsurance.Patches.HUD;
 using ScrapInsurance.Patches.RoundComponents;
 using ScrapInsurance.Patches.TerminalComponents;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
 using UnityEngine;
 namespace ScrapInsurance
 {
@@ -23,6 +27,28 @@ namespace ScrapInsurance
         void Awake()
         {
             Config = new PluginConfig(base.Config);
+            // netcode patching stuff
+            IEnumerable<Type> types;
+            try
+            {
+                types = Assembly.GetExecutingAssembly().GetTypes();
+            }
+            catch (ReflectionTypeLoadException e)
+            {
+                types = e.Types.Where(t => t != null);
+            }
+            foreach (var type in types)
+            {
+                var methods = type.GetMethods(BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static);
+                foreach (var method in methods)
+                {
+                    var attributes = method.GetCustomAttributes(typeof(RuntimeInitializeOnLoadMethodAttribute), false);
+                    if (attributes.Length > 0)
+                    {
+                        method.Invoke(null, null);
+                    }
+                }
+            }
 
             PatchMainVersion();
             networkPrefab = LethalLib.Modules.NetworkPrefabs.CreateNetworkPrefab(ScrapInsuranceBehaviour.COMMAND_NAME);
