@@ -14,6 +14,8 @@ namespace ScrapInsurance.Misc
         {
             string topSection = "General";
             SCRAP_INSURANCE_PRICE = cfg.BindSyncedEntry(topSection, Constants.SCRAP_INSURANCE_PRICE_KEY, ScrapInsuranceBehaviour.DEFAULT_PRICE);
+
+            ConfigManager.Register(this);
         }
     }
 }
