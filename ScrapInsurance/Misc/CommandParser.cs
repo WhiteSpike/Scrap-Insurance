@@ -1,10 +1,13 @@
 ﻿using ScrapInsurance.Misc.Util;
+using System;
+using System.Diagnostics;
 using UnityEngine;
 
 namespace ScrapInsurance.Misc
 {
     internal static class CommandParser
     {
+        static bool confirmPrompt = false;
         const string SCRAP_INSURANCE_COMMAND = ">SCRAP INSURANCE\n" +
             "Activates an insurance policy on scrap stored in the ship incase of a team wipe occurs.\n" +
             "Can only be bought while in orbit and will only apply in the next moon land after purchase.\n" +
@@ -25,9 +28,25 @@ namespace ScrapInsurance.Misc
             switch (firstWord)
             {
                 case "scrap": outputNode = ExecuteScrapCommands(secondWord, thirdWord, ref terminal, ref outputNode); return;
-                default: return;
+                default: outputNode = CheckConfirmPrompt(firstWord, ref terminal, ref outputNode); return;
             }
         }
+
+        private static TerminalNode CheckConfirmPrompt(string firstWord, ref Terminal terminal, ref TerminalNode outputNode)
+        {
+            if (!confirmPrompt) return outputNode;
+            confirmPrompt = false;
+            if (string.IsNullOrEmpty(firstWord) || !"confirm".Contains(firstWord, comparisonType: StringComparison.OrdinalIgnoreCase))
+                return outputNode;
+
+            int price = Plugin.Config.SCRAP_INSURANCE_PRICE;
+            if (terminal.IsServer) terminal.SyncGroupCreditsClientRpc(terminal.groupCredits - price, terminal.numberOfItemsInDropship);
+            else terminal.SyncGroupCreditsServerRpc(terminal.groupCredits - price, terminal.numberOfItemsInDropship);
+
+            ScrapInsuranceBehaviour.TurnOnScrapInsurance();
+            return DisplayTerminalMessage(Constants.SCRAP_INSURANCE_SUCCESS);
+        }
+
         private static TerminalNode ExecuteScrapCommands(string secondWord, string thirdWord, ref Terminal terminal, ref TerminalNode outputNode)
         {
             return secondWord switch
@@ -51,11 +70,8 @@ namespace ScrapInsurance.Misc
             if (terminal.groupCredits < price)
                 return DisplayTerminalMessage(string.Format(Constants.SCRAP_INSURANCE_NOT_ENOUGH_CREDITS_FORMAT, price, terminal.groupCredits));
 
-            if (terminal.IsServer) terminal.SyncGroupCreditsClientRpc(terminal.groupCredits - price, terminal.numberOfItemsInDropship);
-            else terminal.SyncGroupCreditsServerRpc(terminal.groupCredits - price, terminal.numberOfItemsInDropship);
-
-            ScrapInsuranceBehaviour.TurnOnScrapInsurance();
-            return DisplayTerminalMessage(Constants.SCRAP_INSURANCE_SUCCESS);
+            confirmPrompt = true;
+            return DisplayTerminalMessage(string.Format(Constants.SCRAP_INSURANCE_CONFIRM, price));
         }
     }
 }
